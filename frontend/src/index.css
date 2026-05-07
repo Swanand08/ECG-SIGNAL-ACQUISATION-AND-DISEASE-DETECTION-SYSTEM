@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #0B0E14;
+  --color-surface: rgba(21, 26, 34, 0.6);
+  --color-surfaceBorder: rgba(60, 70, 85, 0.5);
+  --color-primary: #00F0FF;
+  --color-primary-dark: #0088AA;
+  --color-success: #00FF88;
+  --color-warning: #FFB800;
+  --color-danger: #FF003C;
+  --color-purple: #B200FF;
+}
+
+@layer base {
+  body {
+    @apply text-white antialiased font-sans overflow-x-hidden;
+    background: radial-gradient(circle at 50% 0%, #1a1a3a 0%, #0B0E14 70%);
+    min-height: 100vh;
+  }
+}
+
+.glass-panel {
+  @apply bg-surface backdrop-blur-xl border border-surfaceBorder rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.3)] transition-all duration-500;
+}
+
+.glass-panel:hover {
+  @apply shadow-[0_8px_32px_rgba(0,240,255,0.08)] border-[rgba(0,240,255,0.2)] transform -translate-y-1;
+}
+
+.neon-text {
+  text-shadow: 0 0 15px rgba(0, 240, 255, 0.6), 0 0 30px rgba(0, 240, 255, 0.2);
+}
+
+.neon-text-success {
+  text-shadow: 0 0 15px rgba(0, 255, 136, 0.6), 0 0 30px rgba(0, 255, 136, 0.2);
+}
+
+.neon-text-warning {
+  text-shadow: 0 0 15px rgba(255, 184, 0, 0.6), 0 0 30px rgba(255, 184, 0, 0.2);
+}
+
+.neon-text-danger {
+  text-shadow: 0 0 15px rgba(255, 0, 60, 0.6), 0 0 30px rgba(255, 0, 60, 0.2);
+}
+
+@keyframes beat {
+  0% { transform: scale(1); }
+  15% { transform: scale(1.25); }
+  30% { transform: scale(1); }
+  45% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+
+.animate-beat {
+  animation: beat var(--beat-duration, 1s) infinite cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.bg-grid-pattern {
+  background-image: 
+    linear-gradient(rgba(0, 240, 255, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 240, 255, 0.07) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
