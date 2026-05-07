@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts';
-import { Activity, Heart, AlertTriangle, Settings, Power, RefreshCw, ActivitySquare, HeartPulse, Zap, FileText, Usb } from 'lucide-react';
+import { Heart, AlertTriangle, Power, RefreshCw, ActivitySquare, HeartPulse, Zap, FileText, Usb } from 'lucide-react';
 import jsPDF from 'jspdf';
 import * as htmlToImage from 'html-to-image';
 import { useAuth } from '../context/AuthContext';
