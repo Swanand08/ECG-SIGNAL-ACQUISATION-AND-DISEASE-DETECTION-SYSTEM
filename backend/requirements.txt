@@ -4,3 +4,6 @@ websockets
 numpy
 scipy
 pyserial
+PyJWT
+bcrypt
+email-validator

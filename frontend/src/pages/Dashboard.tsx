@@ -63,7 +63,9 @@ export default function Dashboard() {
     }
     
     const connectWs = () => {
-      wsRef.current = new WebSocket('ws://localhost:8000/ws');
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const wsUrl = apiUrl.replace(/^http/, 'ws') + '/ws';
+      wsRef.current = new WebSocket(wsUrl);
       
       wsRef.current.onopen = () => {
         setIsConnected(true);

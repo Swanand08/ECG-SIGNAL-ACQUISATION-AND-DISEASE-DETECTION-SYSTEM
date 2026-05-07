@@ -30,8 +30,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setToken(storedToken);
       setUser(JSON.parse(storedUser));
       
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      
       // Optionally, verify token validity with the backend here.
-      fetch('http://localhost:8000/me', {
+      fetch(`${apiUrl}/me`, {
         headers: {
           'Authorization': `Bearer ${storedToken}`
         }
