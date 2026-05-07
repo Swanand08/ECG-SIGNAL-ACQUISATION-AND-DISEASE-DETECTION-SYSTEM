@@ -1,6 +1,6 @@
-import { useEffect, useState, useRef, useMemo } from 'react';
+import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts';
-import { Activity, Heart, AlertTriangle, Settings, Power, RefreshCw, ActivitySquare, HeartPulse, Zap, FileText } from 'lucide-react';
+import { Activity, Heart, AlertTriangle, Settings, Power, RefreshCw, ActivitySquare, HeartPulse, Zap, FileText, Usb } from 'lucide-react';
 import jsPDF from 'jspdf';
 import * as htmlToImage from 'html-to-image';
 import { useAuth } from '../context/AuthContext';
@@ -45,6 +45,69 @@ export default function Dashboard() {
   
   const wsRef = useRef<WebSocket | null>(null);
   const demoIntervalRef = useRef<number | null>(null);
+  const [isArduinoConnected, setIsArduinoConnected] = useState(false);
+  const serialReaderRef = useRef<ReadableStreamDefaultReader | null>(null);
+
+  const connectArduino = useCallback(async () => {
+    if (isArduinoConnected) {
+      // Disconnect
+      try {
+        if (serialReaderRef.current) {
+          await serialReaderRef.current.cancel();
+          serialReaderRef.current = null;
+        }
+      } catch (_) {}
+      setIsArduinoConnected(false);
+      return;
+    }
+
+    if (!('serial' in navigator)) {
+      alert('Web Serial API is not supported. Please use Chrome or Edge browser.');
+      return;
+    }
+
+    try {
+      // @ts-ignore
+      const port = await (navigator as any).serial.requestPort();
+      await port.open({ baudRate: 9600 });
+      setIsArduinoConnected(true);
+
+      const reader = port.readable.getReader();
+      serialReaderRef.current = reader;
+      let lineBuffer = '';
+
+      const readLoop = async () => {
+        try {
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            const chunk = new TextDecoder().decode(value);
+            lineBuffer += chunk;
+            const lines = lineBuffer.split('\n');
+            lineBuffer = lines.pop() || '';
+            for (const line of lines) {
+              const trimmed = line.trim();
+              const val = parseFloat(trimmed);
+              if (!isNaN(val) && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                wsRef.current.send(JSON.stringify({ type: 'raw_data', value: val }));
+              }
+            }
+          }
+        } catch (err) {
+          // Reader cancelled or port closed
+        } finally {
+          setIsArduinoConnected(false);
+          serialReaderRef.current = null;
+        }
+      };
+
+      readLoop();
+    } catch (err: any) {
+      if (err.name !== 'NotFoundError') {
+        alert('Could not connect to Arduino: ' + err.message);
+      }
+    }
+  }, [isArduinoConnected]);
   
   // Dynamic CSS variable for heartbeat animation
   useEffect(() => {
@@ -420,6 +483,18 @@ export default function Dashboard() {
           >
             <Zap className={`w-4 h-4 ${isDemoMode ? 'text-primary animate-pulse' : 'text-gray-500 group-hover:text-warning transition-colors'}`} />
             SIMULATE {isDemoMode ? 'ON' : 'OFF'}
+          </button>
+          <button
+            onClick={connectArduino}
+            title="Connect your Arduino via USB (Chrome/Edge only)"
+            className={`group px-6 py-2.5 rounded-full text-sm font-bold transition-all duration-300 border flex items-center gap-2 ${
+              isArduinoConnected
+                ? 'bg-success/20 text-success border-success/50 shadow-[0_0_20px_rgba(0,255,136,0.3)] hover:bg-success/30'
+                : 'bg-surface border-surfaceBorder text-gray-400 hover:text-white hover:border-gray-500'
+            }`}
+          >
+            <Usb className={`w-4 h-4 ${isArduinoConnected ? 'text-success animate-pulse' : 'text-gray-500 group-hover:text-success transition-colors'}`} />
+            {isArduinoConnected ? 'ARDUINO ON' : 'CONNECT ARDUINO'}
           </button>
           
           {/* User Profile & Logout */}

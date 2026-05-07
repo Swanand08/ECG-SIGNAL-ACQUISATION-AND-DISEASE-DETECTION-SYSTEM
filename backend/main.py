@@ -52,18 +52,21 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
+# Shared queue: browser Web Serial API pushes raw values here
+web_serial_queue: asyncio.Queue = asyncio.Queue()
+
 async def read_serial_data():
     raw_buffer = []
     time_buffer = []
     start_time = time.time()
     
-    # Try to connect to Arduino
+    # Try to connect to local Arduino serial port (works when running locally)
     serial_port = None
     try:
         serial_port = serial.Serial('COM7', 9600, timeout=1)
-        print("Connected to serial port")
+        print("Connected to local serial port")
     except SerialException:
-        print("Could not connect to serial port, falling back to mock data")
+        print("No local serial port found. Will use browser Web Serial or mock data.")
     
     samples_since_last_send = 0
     samples_per_send = int(FS / SEND_RATE)
@@ -75,15 +78,22 @@ async def read_serial_data():
                 continue
                 
             val = None
-            if serial_port and serial_port.is_open:
+
+            # Priority 1: Data coming from browser Web Serial API
+            if not web_serial_queue.empty():
+                val = await web_serial_queue.get()
+            # Priority 2: Local Arduino connected directly to server
+            elif serial_port and serial_port.is_open:
                 if serial_port.in_waiting > 0:
                     line = serial_port.readline().decode('utf-8').strip()
                     try:
                         val = float(line)
                     except ValueError:
                         pass
+                else:
+                    await asyncio.sleep(0.001)
+            # Priority 3: Mock data fallback (cloud with no Arduino)
             else:
-                # Mock data generator
                 await asyncio.sleep(1/FS)
                 t_current = time.time() - start_time
                 val = generate_mock_ecg_point(t_current)
@@ -137,8 +147,6 @@ async def read_serial_data():
                         quality = "Poor"
 
                     # Get recent samples to send to frontend
-                    # Send only the new samples to save bandwidth, or send the whole window?
-                    # For a web dashboard, it's easier to append new points on the frontend.
                     recent_times = time_buffer[-samples_since_last_send:]
                     recent_raw = raw_buffer[-samples_since_last_send:]
                     recent_filtered = filtered_arr[-samples_since_last_send:].tolist()
@@ -238,7 +246,13 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             data = await websocket.receive_text()
             message = json.loads(data)
-            if "action" in message:
+            # Handle raw ECG data pushed from browser Web Serial API
+            if message.get("type") == "raw_data":
+                try:
+                    await web_serial_queue.put(float(message["value"]))
+                except (KeyError, ValueError):
+                    pass
+            elif "action" in message:
                 if message["action"] == "start":
                     manager.is_running = True
                 elif message["action"] == "stop":
