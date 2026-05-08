@@ -70,6 +70,7 @@ async def read_serial_data():
     
     samples_since_last_send = 0
     samples_per_send = int(FS / SEND_RATE)
+    rr_history = []  # To keep track of recent RR intervals for smoothing
     
     while True:
         try:
@@ -117,23 +118,39 @@ async def read_serial_data():
                     peaks = detect_r_peaks(filtered_arr, FS)
                     
                     # Calculate RR intervals
-                    rr_intervals = []
+                    current_rr_intervals = []
                     if len(peaks) > 1:
                         peak_times = np.array(time_buffer)[peaks]
-                        rr_intervals = np.diff(peak_times).tolist()
+                        current_rr_intervals = np.diff(peak_times).tolist()
                     
                     latest_hr = 0
                     status = "Normal"
-                    if rr_intervals:
-                        latest_rr = rr_intervals[-1]
-                        if latest_rr > 0:
-                            latest_hr = 60.0 / latest_rr
+                    
+                    if current_rr_intervals:
+                        # Add new RR intervals to history, but only if they are physically plausible
+                        # 40 BPM = 1.5s, 220 BPM = 0.27s
+                        for rr in current_rr_intervals:
+                            if 0.27 <= rr <= 1.5:
+                                rr_history.append(rr)
+                        
+                        # Keep history size reasonable (e.g., last 12 intervals for a good moving average)
+                        if len(rr_history) > 12:
+                            rr_history = rr_history[-12:]
+                        
+                        if rr_history:
+                            # Use moving average for stability
+                            avg_rr = np.mean(rr_history)
+                            latest_hr = 60.0 / avg_rr
                             
-                        # Basic status logic
-                        if latest_hr < 60:
-                            status = "Bradycardia"
-                        elif latest_hr > 100:
-                            status = "Tachycardia"
+                            # Basic status logic based on smoothed HR
+                            if latest_hr < 60:
+                                status = "Bradycardia"
+                            elif latest_hr > 100:
+                                status = "Tachycardia"
+                        else:
+                            # If no plausible RR intervals yet, HR is unknown
+                            latest_hr = 0
+                            status = "Analyzing..."
                     
                     # Estimate SNR (Signal-to-Noise Ratio) very roughly
                     signal_power = np.var(filtered_arr)

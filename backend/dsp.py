@@ -40,12 +40,16 @@ def filter_signal(data, fs=100.0, enabled=True):
 def detect_r_peaks(signal, fs=100.0):
     if len(signal) < 2:
         return np.array([])
-    # Distance: at 100Hz, 0.3s is 30 samples. Assuming max HR of 200 BPM
-    distance = int(0.3 * fs)
+    
+    # Distance: minimum time between heartbeats.
+    # A human heart rarely exceeds 220 BPM (0.27s). 
+    # Let's set a slightly more conservative distance of 0.35s at 100Hz.
+    distance = int(0.35 * fs)
     
     # The amplitude of R-peaks should be prominent.
-    # Set threshold based on signal mean and standard deviation
-    threshold = np.mean(signal) + 0.6 * np.std(signal)
+    # Increasing threshold from 0.6 to 1.2 standard deviations to be more selective.
+    # This helps ignore P and T waves which are usually much smaller.
+    threshold = np.mean(signal) + 1.2 * np.std(signal)
     
     peaks, _ = find_peaks(signal, distance=distance, height=threshold)
     return peaks
